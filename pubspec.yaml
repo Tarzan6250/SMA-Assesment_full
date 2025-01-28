@@ -1,0 +1,39 @@
+name: flutter_application_1
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  google_fonts: ^4.0.4
+  firebase_core: ^2.1.1
+  cloud_firestore: ^4.0.3
+  firebase_auth: ^4.14.0
+  image_picker: ^1.1.2
+  firebase_storage: ^11.5.1
+  font_awesome_flutter: ^10.8.0
+  percent_indicator: ^4.2.4
+  intl: ^0.20.1
+  carousel_slider: ^5.0.0
+  load_switch: ^2.1.0
+  mailer: ^6.4.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/play_icon.png
+    - assets/icons/graphics_icon.png
+    - assets/icons/uiux_icon.png
+    - assets/icons/science_icon.png
+    - assets/images/course_image.png
+    - assets/images/user.png
