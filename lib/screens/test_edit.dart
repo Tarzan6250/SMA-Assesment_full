@@ -16,7 +16,7 @@ class _TestEditState extends State<TestEdit> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text('Edit Test Questions'),
@@ -27,7 +27,11 @@ class _TestEditState extends State<TestEdit> {
                     ? 'multiple_choice' 
                     : index == 1 
                         ? 'Multi_Sel'  
-                        : 'true_false';
+                        : index == 2 
+                            ? 'true_false' 
+                            : index == 3 
+                                ? 'rag' 
+                                : 'voice';
                 _selectedQuestion = null;
                 _selectedIndex = null;
                 _isAddingNew = false;
@@ -37,6 +41,8 @@ class _TestEditState extends State<TestEdit> {
               Tab(text: 'Multiple Choice'),
               Tab(text: 'Multi Select'),  
               Tab(text: 'True/False'),
+              Tab(text: 'RAG Assessment'),
+              Tab(text: 'Voice Input'),
             ],
           ),
         ),
@@ -55,6 +61,8 @@ class _TestEditState extends State<TestEdit> {
             _buildQuestionList('zdD79hpJJxCq9mOtp33I'),
             _buildQuestionList('UQvys4UKzeM4MnBbnr0j'),
             _buildQuestionList('ve27tEYc0wAE7bFLtubm'),
+            _buildQuestionList('6eyyZYQ4ChVXmf0GCCRjv'),
+            _buildQuestionList('G8b65NreEfHWeWhFiQop'),
           ],
         ),
       ),
@@ -111,10 +119,25 @@ class _TestEditState extends State<TestEdit> {
   }
 
   Widget _buildNewQuestionForm() {
+    String selectedQuestionType = 'multiple_choice';
     TextEditingController questionController = TextEditingController();
-    ValueNotifier<List<String>> optionsNotifier = ValueNotifier<List<String>>(['', '', '', '']);
-    ValueNotifier<List<String>> selectedAnswersNotifier = ValueNotifier<List<String>>([]);  
-    ValueNotifier<String> selectedAnswerNotifier = ValueNotifier<String>('');  
+    ValueNotifier<List<String>> optionsNotifier = ValueNotifier<List<String>>(['', '']);
+    ValueNotifier<List<String>> selectedAnswersNotifier = ValueNotifier<List<String>>(['']);
+    ValueNotifier<List<Map<String, dynamic>>> subcategoriesNotifier = ValueNotifier<List<Map<String, dynamic>>>([
+      {
+        'name': '',
+        'options': [
+          {'color': 'red', 'text': 'Red'},
+          {'color': 'amber', 'text': 'Amber'},
+          {'color': 'green', 'text': 'Green'}
+        ]
+      }
+    ]);
+    ValueNotifier<List<Map<String, String>>> ragOptionsNotifier = ValueNotifier<List<Map<String, String>>>([
+      {'color': 'red', 'text': 'Red'},
+      {'color': 'amber', 'text': 'Amber'},
+      {'color': 'green', 'text': 'Green'},
+    ]);
 
     return StatefulBuilder(
       builder: (context, setState) {
@@ -128,11 +151,52 @@ class _TestEditState extends State<TestEdit> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Add New ${_selectedTab == 'multiple_choice' ? 'Multiple Choice' : _selectedTab == 'Multi_Sel' ? 'Multi Select' : 'True/False'} Question',
+                'Add New ${_selectedTab == 'multiple_choice' ? 'Multiple Choice' : _selectedTab == 'Multi_Sel' ? 'Multi Select' : _selectedTab == 'true_false' ? 'True/False' : _selectedTab == 'rag' ? 'RAG Assessment' : 'Voice Input'} Question',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedQuestionType,
+                decoration: InputDecoration(
+                  labelText: 'Question Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
+                  DropdownMenuItem(value: 'Multi_Sel', child: Text('Multi Select')),
+                  DropdownMenuItem(value: 'true_false', child: Text('True/False')),
+                  DropdownMenuItem(value: 'rag', child: Text('RAG Assessment')),
+                  DropdownMenuItem(value: 'voice', child: Text('Voice Input')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedQuestionType = value!;
+                    if (value == 'true_false') {
+                      optionsNotifier.value = ['true', 'false'];
+                      selectedAnswersNotifier.value = ['true'];
+                    } else if (value == 'rag') {
+                      subcategoriesNotifier.value = [
+                        {
+                          'name': '',
+                          'options': [
+                            {'color': 'red', 'text': 'Red'},
+                            {'color': 'amber', 'text': 'Amber'},
+                            {'color': 'green', 'text': 'Green'}
+                          ]
+                        }
+                      ];
+                    } else if (value == 'voice') {
+                      optionsNotifier.value = [];
+                      selectedAnswersNotifier.value = [''];
+                    } else {
+                      optionsNotifier.value = ['', ''];
+                      selectedAnswersNotifier.value = value == 'Multi_Sel' ? [] : [''];
+                    }
+                  });
+                },
               ),
               SizedBox(height: 16),
               TextField(
@@ -144,7 +208,85 @@ class _TestEditState extends State<TestEdit> {
                 maxLines: null,
               ),
               SizedBox(height: 16),
-              if (_selectedTab == 'multiple_choice' || _selectedTab == 'Multi_Sel') ...[
+              if (selectedQuestionType == 'rag') ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Subcategories:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    TextButton.icon(
+                      icon: Icon(Icons.add),
+                      label: Text('Add Subcategory'),
+                      onPressed: () {
+                        setState(() {
+                          subcategoriesNotifier.value = [
+                            ...subcategoriesNotifier.value,
+                            {
+                              'name': '',
+                              'options': [
+                                {'color': 'red', 'text': 'Red'},
+                                {'color': 'amber', 'text': 'Amber'},
+                                {'color': 'green', 'text': 'Green'}
+                              ]
+                            }
+                          ];
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                ValueListenableBuilder<List<Map<String, dynamic>>>(
+                  valueListenable: subcategoriesNotifier,
+                  builder: (context, subcategories, _) {
+                    return Column(
+                      children: [
+                        ...List.generate(
+                          subcategories.length,
+                          (i) => Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    initialValue: subcategories[i]['name'] as String,
+                                    decoration: InputDecoration(
+                                      labelText: 'Subcategory ${i + 1}',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (value) {
+                                      var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                      newSubcategories[i] = {
+                                        ...newSubcategories[i],
+                                        'name': value,
+                                        'options': [
+                                          {'color': 'red', 'text': 'Red'},
+                                          {'color': 'amber', 'text': 'Amber'},
+                                          {'color': 'green', 'text': 'Green'}
+                                        ]
+                                      };
+                                      subcategoriesNotifier.value = newSubcategories;
+                                    },
+                                  ),
+                                ),
+                                if (subcategories.length > 1)
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      setState(() {
+                                        var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                        newSubcategories.removeAt(i);
+                                        subcategoriesNotifier.value = newSubcategories;
+                                      });
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ] else if (selectedQuestionType != 'voice' && selectedQuestionType != 'true_false') ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -160,7 +302,6 @@ class _TestEditState extends State<TestEdit> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
                 ValueListenableBuilder<List<String>>(
                   valueListenable: optionsNotifier,
                   builder: (context, options, _) {
@@ -186,35 +327,46 @@ class _TestEditState extends State<TestEdit> {
                                     },
                                   ),
                                 ),
-                                if (_selectedTab == 'Multi_Sel')
+                                if (selectedQuestionType == 'Multi_Sel')
                                   ValueListenableBuilder<List<String>>(
                                     valueListenable: selectedAnswersNotifier,
                                     builder: (context, selectedAnswers, _) {
                                       return Checkbox(
                                         value: selectedAnswers.contains(options[i]),
                                         onChanged: (bool? value) {
-                                          var newSelectedAnswers = List<String>.from(selectedAnswers);
                                           if (value == true) {
-                                            newSelectedAnswers.add(options[i]);
+                                            selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
                                           } else {
-                                            newSelectedAnswers.remove(options[i]);
+                                            selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
                                           }
-                                          selectedAnswersNotifier.value = newSelectedAnswers;
                                         },
                                       );
                                     },
                                   )
-                                else
-                                  ValueListenableBuilder<String>(
-                                    valueListenable: selectedAnswerNotifier,
-                                    builder: (context, selectedAnswer, _) {
+                                else if (selectedQuestionType == 'multiple_choice')
+                                  ValueListenableBuilder<List<String>>(
+                                    valueListenable: selectedAnswersNotifier,
+                                    builder: (context, selectedAnswers, _) {
                                       return Radio<String>(
                                         value: options[i],
-                                        groupValue: selectedAnswer,
+                                        groupValue: selectedAnswers.first,
                                         onChanged: (value) {
-                                          selectedAnswerNotifier.value = value!;
+                                          if (value != null) {
+                                            selectedAnswersNotifier.value = [value];
+                                          }
                                         },
                                       );
+                                    },
+                                  ),
+                                if (options.length > 2)
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      setState(() {
+                                        var newOptions = List<String>.from(options);
+                                        newOptions.removeAt(i);
+                                        optionsNotifier.value = newOptions;
+                                      });
                                     },
                                   ),
                               ],
@@ -225,36 +377,36 @@ class _TestEditState extends State<TestEdit> {
                     );
                   },
                 ),
-              ] else ...[
+              ] else if (selectedQuestionType == 'true_false') ...[
                 Text('Select Answer:', style: TextStyle(fontWeight: FontWeight.w500)),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: Text('True'),
-                        value: 'true',
-                        groupValue: selectedAnswerNotifier.value,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedAnswerNotifier.value = value!;
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: Text('False'),
-                        value: 'false',
-                        groupValue: selectedAnswerNotifier.value,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedAnswerNotifier.value = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
+                ValueListenableBuilder<List<String>>(
+                  valueListenable: selectedAnswersNotifier,
+                  builder: (context, selectedAnswers, _) {
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: Text('True'),
+                            value: 'true',
+                            groupValue: selectedAnswers.first,
+                            onChanged: (value) {
+                              selectedAnswersNotifier.value = [value!];
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: Text('False'),
+                            value: 'false',
+                            groupValue: selectedAnswers.first,
+                            onChanged: (value) {
+                              selectedAnswersNotifier.value = [value!];
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
               SizedBox(height: 16),
@@ -279,77 +431,104 @@ class _TestEditState extends State<TestEdit> {
                         return;
                       }
 
-                      if (_selectedTab == 'multiple_choice') {
-                        List<String> validOptions = optionsNotifier.value
-                            .where((text) => text.isNotEmpty)
-                            .toList();
+                      Map<String, dynamic> newQuestion;
+                      if (selectedQuestionType == 'rag') {
+                        List<Map<String, dynamic>> validSubcategories = subcategoriesNotifier.value
+                            .where((subcat) => subcat['name'] != '').toList();
 
-                        if (validOptions.length < 2) {
+                        if (validSubcategories.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please add at least two options')),
+                            SnackBar(content: Text('Please add at least one subcategory')),
                           );
                           return;
                         }
 
-                        if (selectedAnswerNotifier.value.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please select an answer')),
-                          );
-                          return;
-                        }
-
-                        Map<String, dynamic> newQuestion = {
+                        newQuestion = {
                           'ques': questionController.text.trim(),
-                          'ques_type': _selectedTab,
-                          'options': validOptions,
-                          'answer': selectedAnswerNotifier.value,
+                          'ques_type': 'rag',
+                          'subcategories': validSubcategories,
+                          'ques_no': 1,
                         };
-
-                        _addNewQuestion(newQuestion);
-                      } else if (_selectedTab == 'Multi_Sel') {
-                        List<String> validOptions = optionsNotifier.value
-                            .where((text) => text.isNotEmpty)
-                            .toList();
-
-                        if (validOptions.length < 2) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please add at least two options')),
-                          );
-                          return;
-                        }
-
-                        if (selectedAnswersNotifier.value.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please select at least one answer')),
-                          );
-                          return;
-                        }
-
-                        Map<String, dynamic> newQuestion = {
+                      } else if (selectedQuestionType == 'voice') {
+                        newQuestion = {
                           'ques': questionController.text.trim(),
-                          'ques_type': _selectedTab,
-                          'options': validOptions,
-                          'answer': selectedAnswersNotifier.value,
+                          'ques_type': 'voice',
+                          'ques_no': 1,
                         };
-
-                        _addNewQuestion(newQuestion);
                       } else {
-                        if (selectedAnswerNotifier.value.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Please select true or false')),
-                          );
-                          return;
+                        if (selectedQuestionType != 'true_false') {
+                          List<String> validOptions = optionsNotifier.value
+                              .where((text) => text.isNotEmpty)
+                              .toList();
+
+                          if (validOptions.length < 2) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Please add at least two options')),
+                            );
+                            return;
+                          }
+
+                          if (selectedAnswersNotifier.value.isEmpty || 
+                              (selectedQuestionType != 'Multi_Sel' && selectedAnswersNotifier.value.first.isEmpty)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Please select an answer')),
+                            );
+                            return;
+                          }
+
+                          newQuestion = {
+                            'ques': questionController.text.trim(),
+                            'ques_type': selectedQuestionType,
+                            'options': validOptions,
+                            'answer': selectedQuestionType == 'Multi_Sel'
+                                ? selectedAnswersNotifier.value
+                                : selectedAnswersNotifier.value.first,
+                            'ques_no': 1,
+                          };
+                        } else {
+                          newQuestion = {
+                            'ques': questionController.text.trim(),
+                            'ques_type': selectedQuestionType,
+                            'options': ['true', 'false'],
+                            'answer': selectedAnswersNotifier.value.first,
+                            'ques_no': 1,
+                          };
                         }
-
-                        Map<String, dynamic> newQuestion = {
-                          'ques': questionController.text.trim(),
-                          'ques_type': _selectedTab,
-                          'options': ['true', 'false'],
-                          'answer': selectedAnswerNotifier.value,
-                        };
-
-                        _addNewQuestion(newQuestion);
                       }
+
+                      // Set the question number
+                      newQuestion['ques_no'] = 1;
+                      
+                      // For RAG questions, ensure subcategories have the correct structure
+                      if (newQuestion['ques_type'] == 'rag') {
+                        List<Map<String, dynamic>> subcategories = (newQuestion['subcategories'] as List).map((subcat) {
+                          if (subcat is Map<String, dynamic>) {
+                            return subcat;
+                          } else {
+                            return {
+                              'name': subcat,
+                              'options': [
+                                {'color': 'red', 'text': 'Red'},
+                                {'color': 'amber', 'text': 'Amber'},
+                                {'color': 'green', 'text': 'Green'}
+                              ]
+                            };
+                          }
+                        }).toList();
+                        newQuestion['subcategories'] = subcategories;
+                      }
+                      
+                      final docId = selectedQuestionType == 'multiple_choice'
+                          ? 'zdD79hpJJxCq9mOtp33I'
+                          : selectedQuestionType == 'Multi_Sel'
+                              ? 'UQvys4UKzeM4MnBbnr0j'
+                              : selectedQuestionType == 'true_false'
+                                  ? 've27tEYc0wAE7bFLtubm'
+                                  : selectedQuestionType == 'rag'
+                                      ? '6eyyZYQ4ChVXmf0GCCRjv'
+                                      : 'G8b65NreEfHWeWhFiQop';
+
+                      _addNewQuestion(newQuestion, docId);
                     },
                     child: Text('Add Question'),
                   ),
@@ -362,14 +541,8 @@ class _TestEditState extends State<TestEdit> {
     );
   }
 
-  Future<void> _addNewQuestion(Map<String, dynamic> newQuestion) async {
+  Future<void> _addNewQuestion(Map<String, dynamic> newQuestion, String docId) async {
     try {
-      final docId = newQuestion['ques_type'] == 'multiple_choice' 
-          ? 'zdD79hpJJxCq9mOtp33I' 
-          : newQuestion['ques_type'] == 'Multi_Sel' 
-              ? 'UQvys4UKzeM4MnBbnr0j' 
-              : 've27tEYc0wAE7bFLtubm';
-
       DocumentSnapshot doc = await _firestore
           .collection('Question_bank')
           .doc(docId)
@@ -419,6 +592,11 @@ class _TestEditState extends State<TestEdit> {
           ? List<String>.from(question['answer'] as List)
           : [question['answer'].toString()]
     );
+    ValueNotifier<List<Map<String, dynamic>>> subcategoriesNotifier = ValueNotifier<List<Map<String, dynamic>>>(
+      question['ques_type'] == 'rag'
+          ? List<Map<String, dynamic>>.from(question['subcategories'] as List)
+          : []
+    );
 
     return StatefulBuilder(
       builder: (context, setState) {
@@ -432,7 +610,7 @@ class _TestEditState extends State<TestEdit> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Edit ${question['ques_type'] == 'multiple_choice' ? 'Multiple Choice' : question['ques_type'] == 'Multi_Sel' ? 'Multi Select' : 'True/False'} Question',
+                'Edit ${question['ques_type'] == 'multiple_choice' ? 'Multiple Choice' : question['ques_type'] == 'Multi_Sel' ? 'Multi Select' : question['ques_type'] == 'true_false' ? 'True/False' : question['ques_type'] == 'rag' ? 'RAG Assessment' : 'Voice Input'} Question',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -448,7 +626,85 @@ class _TestEditState extends State<TestEdit> {
                 maxLines: null,
               ),
               SizedBox(height: 16),
-              if (question['ques_type'] != 'true_false') ...[
+              if (question['ques_type'] == 'rag') ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Subcategories:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    TextButton.icon(
+                      icon: Icon(Icons.add),
+                      label: Text('Add Subcategory'),
+                      onPressed: () {
+                        setState(() {
+                          subcategoriesNotifier.value = [
+                            ...subcategoriesNotifier.value,
+                            {
+                              'name': '',
+                              'options': [
+                                {'color': 'red', 'text': 'Red'},
+                                {'color': 'amber', 'text': 'Amber'},
+                                {'color': 'green', 'text': 'Green'}
+                              ]
+                            }
+                          ];
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                ValueListenableBuilder<List<Map<String, dynamic>>>(
+                  valueListenable: subcategoriesNotifier,
+                  builder: (context, subcategories, _) {
+                    return Column(
+                      children: [
+                        ...List.generate(
+                          subcategories.length,
+                          (i) => Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    initialValue: subcategories[i]['name'] as String,
+                                    decoration: InputDecoration(
+                                      labelText: 'Subcategory ${i + 1}',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onChanged: (value) {
+                                      var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                      newSubcategories[i] = {
+                                        ...newSubcategories[i],
+                                        'name': value,
+                                        'options': [
+                                          {'color': 'red', 'text': 'Red'},
+                                          {'color': 'amber', 'text': 'Amber'},
+                                          {'color': 'green', 'text': 'Green'}
+                                        ]
+                                      };
+                                      subcategoriesNotifier.value = newSubcategories;
+                                    },
+                                  ),
+                                ),
+                                if (subcategories.length > 1)
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      setState(() {
+                                        var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                        newSubcategories.removeAt(i);
+                                        subcategoriesNotifier.value = newSubcategories;
+                                      });
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ] else if (question['ques_type'] != 'true_false') ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -464,7 +720,6 @@ class _TestEditState extends State<TestEdit> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
                 ValueListenableBuilder<List<String>>(
                   valueListenable: optionsNotifier,
                   builder: (context, options, _) {
@@ -486,7 +741,6 @@ class _TestEditState extends State<TestEdit> {
                                     onChanged: (value) {
                                       var newOptions = List<String>.from(options);
                                       newOptions[i] = value;
-                                      optionsNotifier.value = newOptions;
                                       
                                       // Update selected answers if option text changes
                                       if (question['ques_type'] == 'Multi_Sel') {
@@ -813,6 +1067,452 @@ class _TestEditState extends State<TestEdit> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting question: $e')),
+      );
+    }
+  }
+
+  void _showAddQuestionDialog() {
+    String selectedQuestionType = 'multiple_choice';
+    TextEditingController questionController = TextEditingController();
+    ValueNotifier<List<String>> optionsNotifier = ValueNotifier<List<String>>(['', '']);
+    ValueNotifier<List<String>> selectedAnswersNotifier = ValueNotifier<List<String>>(['']);
+    ValueNotifier<List<Map<String, dynamic>>> subcategoriesNotifier = ValueNotifier<List<Map<String, dynamic>>>([
+      {
+        'name': '',
+        'options': [
+          {'color': 'red', 'text': 'Red'},
+          {'color': 'amber', 'text': 'Amber'},
+          {'color': 'green', 'text': 'Green'}
+        ]
+      }
+    ]);
+    ValueNotifier<List<Map<String, String>>> ragOptionsNotifier = ValueNotifier<List<Map<String, String>>>([
+      {'color': 'red', 'text': 'Red'},
+      {'color': 'amber', 'text': 'Amber'},
+      {'color': 'green', 'text': 'Green'},
+    ]);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Add New Question'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedQuestionType,
+                    decoration: InputDecoration(
+                      labelText: 'Question Type',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
+                      DropdownMenuItem(value: 'Multi_Sel', child: Text('Multi Select')),
+                      DropdownMenuItem(value: 'true_false', child: Text('True/False')),
+                      DropdownMenuItem(value: 'rag', child: Text('RAG Assessment')),
+                      DropdownMenuItem(value: 'voice', child: Text('Voice Input')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedQuestionType = value!;
+                        if (value == 'true_false') {
+                          optionsNotifier.value = ['true', 'false'];
+                          selectedAnswersNotifier.value = ['true'];
+                        } else if (value == 'rag') {
+                          subcategoriesNotifier.value = [
+                            {
+                              'name': '',
+                              'options': [
+                                {'color': 'red', 'text': 'Red'},
+                                {'color': 'amber', 'text': 'Amber'},
+                                {'color': 'green', 'text': 'Green'}
+                              ]
+                            }
+                          ];
+                        } else if (value == 'voice') {
+                          optionsNotifier.value = [];
+                          selectedAnswersNotifier.value = [''];
+                        } else {
+                          optionsNotifier.value = ['', ''];
+                          selectedAnswersNotifier.value = value == 'Multi_Sel' ? [] : [''];
+                        }
+                      });
+                    },
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: questionController,
+                    decoration: InputDecoration(
+                      labelText: 'Question',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: null,
+                  ),
+                  SizedBox(height: 16),
+                  if (selectedQuestionType == 'rag') ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Subcategories:', style: TextStyle(fontWeight: FontWeight.w500)),
+                        TextButton.icon(
+                          icon: Icon(Icons.add),
+                          label: Text('Add Subcategory'),
+                          onPressed: () {
+                            setState(() {
+                              subcategoriesNotifier.value = [
+                                ...subcategoriesNotifier.value,
+                                {
+                                  'name': '',
+                                  'options': [
+                                    {'color': 'red', 'text': 'Red'},
+                                    {'color': 'amber', 'text': 'Amber'},
+                                    {'color': 'green', 'text': 'Green'}
+                                  ]
+                                }
+                              ];
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    ValueListenableBuilder<List<Map<String, dynamic>>>(
+                      valueListenable: subcategoriesNotifier,
+                      builder: (context, subcategories, _) {
+                        return Column(
+                          children: [
+                            ...List.generate(
+                              subcategories.length,
+                              (i) => Padding(
+                                padding: EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: subcategories[i]['name'] as String,
+                                        decoration: InputDecoration(
+                                          labelText: 'Subcategory ${i + 1}',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        onChanged: (value) {
+                                          var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                          newSubcategories[i] = {
+                                            ...newSubcategories[i],
+                                            'name': value,
+                                            'options': [
+                                              {'color': 'red', 'text': 'Red'},
+                                              {'color': 'amber', 'text': 'Amber'},
+                                              {'color': 'green', 'text': 'Green'}
+                                            ]
+                                          };
+                                          subcategoriesNotifier.value = newSubcategories;
+                                        },
+                                      ),
+                                    ),
+                                    if (subcategories.length > 1)
+                                      IconButton(
+                                        icon: Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () {
+                                          setState(() {
+                                            var newSubcategories = List<Map<String, dynamic>>.from(subcategories);
+                                            newSubcategories.removeAt(i);
+                                            subcategoriesNotifier.value = newSubcategories;
+                                          });
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ] else if (selectedQuestionType != 'voice' && selectedQuestionType != 'true_false') ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Options:', style: TextStyle(fontWeight: FontWeight.w500)),
+                        TextButton.icon(
+                          icon: Icon(Icons.add),
+                          label: Text('Add Option'),
+                          onPressed: () {
+                            setState(() {
+                              optionsNotifier.value = [...optionsNotifier.value, ''];
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    ValueListenableBuilder<List<String>>(
+                      valueListenable: optionsNotifier,
+                      builder: (context, options, _) {
+                        return Column(
+                          children: [
+                            ...List.generate(
+                              options.length,
+                              (i) => Padding(
+                                padding: EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: options[i],
+                                        decoration: InputDecoration(
+                                          labelText: 'Option ${i + 1}',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        onChanged: (value) {
+                                          var newOptions = List<String>.from(options);
+                                          newOptions[i] = value;
+                                          optionsNotifier.value = newOptions;
+                                        },
+                                      ),
+                                    ),
+                                    if (selectedQuestionType == 'Multi_Sel')
+                                      ValueListenableBuilder<List<String>>(
+                                        valueListenable: selectedAnswersNotifier,
+                                        builder: (context, selectedAnswers, _) {
+                                          return Checkbox(
+                                            value: selectedAnswers.contains(options[i]),
+                                            onChanged: (bool? value) {
+                                              if (value == true) {
+                                                selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
+                                              } else {
+                                                selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
+                                              }
+                                            },
+                                          );
+                                        },
+                                      )
+                                    else if (selectedQuestionType == 'multiple_choice')
+                                      ValueListenableBuilder<List<String>>(
+                                        valueListenable: selectedAnswersNotifier,
+                                        builder: (context, selectedAnswers, _) {
+                                          return Radio<String>(
+                                            value: options[i],
+                                            groupValue: selectedAnswers.first,
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                selectedAnswersNotifier.value = [value];
+                                              }
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    if (options.length > 2)
+                                      IconButton(
+                                        icon: Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () {
+                                          setState(() {
+                                            var newOptions = List<String>.from(options);
+                                            newOptions.removeAt(i);
+                                            optionsNotifier.value = newOptions;
+                                          });
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ] else if (selectedQuestionType == 'true_false') ...[
+                    Text('Select Answer:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    ValueListenableBuilder<List<String>>(
+                      valueListenable: selectedAnswersNotifier,
+                      builder: (context, selectedAnswers, _) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: Text('True'),
+                                value: 'true',
+                                groupValue: selectedAnswers.first,
+                                onChanged: (value) {
+                                  selectedAnswersNotifier.value = [value!];
+                                },
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: Text('False'),
+                                value: 'false',
+                                groupValue: selectedAnswers.first,
+                                onChanged: (value) {
+                                  selectedAnswersNotifier.value = [value!];
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (questionController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Question cannot be empty')),
+                    );
+                    return;
+                  }
+
+                  Map<String, dynamic> newQuestion;
+                  if (selectedQuestionType == 'rag') {
+                    List<Map<String, dynamic>> validSubcategories = subcategoriesNotifier.value
+                        .where((subcat) => subcat['name'] != '').toList();
+
+                    if (validSubcategories.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please add at least one subcategory')),
+                      );
+                      return;
+                    }
+
+                    newQuestion = {
+                      'ques': questionController.text.trim(),
+                      'ques_type': 'rag',
+                      'subcategories': validSubcategories,
+                      'ques_no': 1,
+                    };
+                  } else if (selectedQuestionType == 'voice') {
+                    newQuestion = {
+                      'ques': questionController.text.trim(),
+                      'ques_type': 'voice',
+                      'ques_no': 1,
+                    };
+                  } else {
+                    if (selectedQuestionType != 'true_false') {
+                      List<String> validOptions = optionsNotifier.value
+                          .where((text) => text.isNotEmpty)
+                          .toList();
+
+                      if (validOptions.length < 2) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please add at least two options')),
+                        );
+                        return;
+                      }
+
+                      if (selectedAnswersNotifier.value.isEmpty || 
+                          (selectedQuestionType != 'Multi_Sel' && selectedAnswersNotifier.value.first.isEmpty)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please select an answer')),
+                        );
+                        return;
+                      }
+
+                      newQuestion = {
+                        'ques': questionController.text.trim(),
+                        'ques_type': selectedQuestionType,
+                        'options': validOptions,
+                        'answer': selectedQuestionType == 'Multi_Sel'
+                            ? selectedAnswersNotifier.value
+                            : selectedAnswersNotifier.value.first,
+                        'ques_no': 1,
+                      };
+                    } else {
+                      newQuestion = {
+                        'ques': questionController.text.trim(),
+                        'ques_type': selectedQuestionType,
+                        'options': ['true', 'false'],
+                        'answer': selectedAnswersNotifier.value.first,
+                        'ques_no': 1,
+                      };
+                    }
+                  }
+
+                  // Set the question number
+                  newQuestion['ques_no'] = 1;
+                  
+                  // For RAG questions, ensure subcategories have the correct structure
+                  if (newQuestion['ques_type'] == 'rag') {
+                    List<Map<String, dynamic>> subcategories = (newQuestion['subcategories'] as List).map((subcat) {
+                      if (subcat is Map<String, dynamic>) {
+                        return subcat;
+                      } else {
+                        return {
+                          'name': subcat,
+                          'options': [
+                            {'color': 'red', 'text': 'Red'},
+                            {'color': 'amber', 'text': 'Amber'},
+                            {'color': 'green', 'text': 'Green'}
+                          ]
+                        };
+                      }
+                    }).toList();
+                    newQuestion['subcategories'] = subcategories;
+                  }
+                  
+                  final docId = selectedQuestionType == 'multiple_choice'
+                      ? 'zdD79hpJJxCq9mOtp33I'
+                      : selectedQuestionType == 'Multi_Sel'
+                          ? 'UQvys4UKzeM4MnBbnr0j'
+                          : selectedQuestionType == 'true_false'
+                              ? 've27tEYc0wAE7bFLtubm'
+                              : selectedQuestionType == 'rag'
+                                  ? '6eyyZYQ4ChVXmf0GCCRjv'
+                                  : 'G8b65NreEfHWeWhFiQop';
+
+                  await _addQuestion(newQuestion, docId);
+                  Navigator.pop(context);
+                },
+                child: Text('Add Question'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _addQuestion(Map<String, dynamic> newQuestion, String docId) async {
+    try {
+      DocumentSnapshot doc = await _firestore
+          .collection('Question_bank')
+          .doc(docId)
+          .get();
+      
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Document not found')),
+        );
+        return;
+      }
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      List<dynamic> questions = List.from(data['questions'] ?? []);
+      
+      newQuestion['ques_no'] = questions.length + 1;
+      questions.add(newQuestion);
+
+      await _firestore
+          .collection('Question_bank')
+          .doc(docId)
+          .update({
+        'questions': questions,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Question added successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding question: $e')),
       );
     }
   }

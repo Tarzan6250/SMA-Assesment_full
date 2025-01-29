@@ -57,8 +57,17 @@ class _QuizSliderState extends State<QuizSlider> {
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         if (data.containsKey('questions')) {
-          final questions = List<Map<String, dynamic>>.from(data['questions'] as List);
-          allQuestions.addAll(questions);
+          // Safely handle the questions list
+          final questionsList = data['questions'];
+          if (questionsList != null) {
+            if (questionsList is List) {
+              for (var question in questionsList) {
+                if (question is Map) {
+                  allQuestions.add(Map<String, dynamic>.from(question));
+                }
+              }
+            }
+          }
         }
       }
 
