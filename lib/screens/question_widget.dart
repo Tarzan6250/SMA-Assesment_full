@@ -40,6 +40,10 @@ class _QuestionWidgetState extends State<QuestionWidget> {
     super.initState();
     if (widget.question['ques_type'] == 'voice') {
       _initSpeech();
+      if (widget.selectedAnswer != null) {
+        _voiceText = widget.selectedAnswer.toString();
+        _textController.text = _voiceText;
+      }
     }
     if (widget.selectedAnswer != null && widget.question['ques_type'] == 'text') {
       _textController.text = widget.selectedAnswer.toString();
@@ -69,6 +73,7 @@ class _QuestionWidgetState extends State<QuestionWidget> {
           onResult: (result) {
             setState(() {
               _voiceText = result.recognizedWords;
+              _textController.text = _voiceText;
               widget.onAnswerSelected(_voiceText);
             });
           },
@@ -83,8 +88,47 @@ class _QuestionWidgetState extends State<QuestionWidget> {
   }
 
   Widget _buildRAGQuestion() {
-    List<Map<String, dynamic>> subcategories = 
-        List<Map<String, dynamic>>.from(widget.question['subcategories'] ?? []);
+    List<Map<String, dynamic>> subcategories = [];
+    
+    try {
+      final subList = widget.question['subcategories'];
+      if (subList != null) {
+        if (subList is List) {
+          for (var item in subList) {
+            if (item is Map<String, dynamic>) {
+              subcategories.add(item);
+            } else if (item is Map) {
+              // Convert to the correct type
+              Map<String, dynamic> convertedItem = {};
+              item.forEach((key, value) {
+                if (key is String) {
+                  convertedItem[key] = value;
+                }
+              });
+              if (convertedItem.containsKey('name') && convertedItem.containsKey('options')) {
+                subcategories.add(convertedItem);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error processing RAG subcategories: $e');
+    }
+
+    // If no valid subcategories found, provide a default
+    if (subcategories.isEmpty) {
+      subcategories = [
+        {
+          'name': 'Assessment',
+          'options': [
+            {'color': 'red', 'text': 'Red'},
+            {'color': 'amber', 'text': 'Amber'},
+            {'color': 'green', 'text': 'Green'}
+          ]
+        }
+      ];
+    }
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,21 +245,40 @@ class _QuestionWidgetState extends State<QuestionWidget> {
               Container(
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Text(
-                      _voiceText.isEmpty ? 'Tap the microphone to start speaking' : _voiceText,
-                      style: GoogleFonts.poppins(fontSize: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        decoration: InputDecoration(
+                          hintText: 'Your answer will appear here...',
+                          border: InputBorder.none,
+                        ),
+                        maxLines: null,
+                        onChanged: (value) {
+                          setState(() {
+                            _voiceText = value;
+                            widget.onAnswerSelected(value);
+                          });
+                        },
+                      ),
                     ),
-                    SizedBox(height: 16),
                     IconButton(
-                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
-                      onPressed: _isListening ? _stopListening : _startListening,
-                      color: _isListening ? Theme.of(context).primaryColor : Colors.grey,
-                      iconSize: 36,
+                      icon: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: _isListening ? Colors.red : Colors.grey,
+                        size: 30,
+                      ),
+                      onPressed: () {
+                        if (_isListening) {
+                          _stopListening();
+                        } else {
+                          _startListening();
+                        }
+                      },
                     ),
                   ],
                 ),

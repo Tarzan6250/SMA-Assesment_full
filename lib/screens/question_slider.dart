@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/question_service.dart';
+import 'dart:convert';
 
 class QuizSlider extends StatefulWidget {
   @override
@@ -126,6 +127,53 @@ class _QuizSliderState extends State<QuizSlider> {
     });
   }
 
+  void handleRAGAnswer(int questionIndex, String subcategoryName, String color) {
+    if (!answers.containsKey(questionIndex)) {
+      answers[questionIndex] = [];
+    }
+    
+    // Find or create the answer for this subcategory
+    Map<String, String> answer = {
+      'subcategory': subcategoryName,
+      'color': color,
+    };
+    
+    // Update the answer
+    List<Map<String, String>> currentAnswers = answers[questionIndex]!
+        .map((a) => Map<String, String>.from(json.decode(a)))
+        .toList();
+        
+    bool found = false;
+    for (int i = 0; i < currentAnswers.length; i++) {
+      if (currentAnswers[i]['subcategory'] == subcategoryName) {
+        currentAnswers[i]['color'] = color;
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      currentAnswers.add(answer);
+    }
+    
+    // Convert back to string format
+    answers[questionIndex] = currentAnswers.map((a) => json.encode(a)).toList();
+    
+    setState(() {});
+  }
+
+  String? getRAGAnswer(int questionIndex, String subcategoryName) {
+    if (!answers.containsKey(questionIndex)) return null;
+    
+    for (String answerStr in answers[questionIndex]!) {
+      Map<String, dynamic> answer = json.decode(answerStr);
+      if (answer['subcategory'] == subcategoryName) {
+        return answer['color'];
+      }
+    }
+    return null;
+  }
+
   bool isAnswerSelected(int questionIndex, String option) {
     if (!answers.containsKey(questionIndex)) return false;
     return answers[questionIndex]!.contains(option);
@@ -150,7 +198,9 @@ class _QuizSliderState extends State<QuizSlider> {
       for (int i = 0; i < questions.length; i++) {
         if (answers.containsKey(i)) {
           if (questions[i]['ques_type'] == 'Multi_Sel') {
-            var correctAnswers = List<String>.from(questions[i]['answer'] as List);
+            var correctAnswers = questions[i]['answer'] != null && questions[i]['answer'] is List
+                ? List<String>.from(questions[i]['answer'] as List)
+                : <String>[];
             var userAnswers = answers[i] ?? [];
             if (correctAnswers.length == userAnswers.length && 
                 correctAnswers.every((element) => userAnswers.contains(element))) {
@@ -161,6 +211,12 @@ class _QuizSliderState extends State<QuizSlider> {
                 questions[i]['answer'].toString().toLowerCase()) {
               score++;
             }
+          } else if (questions[i]['ques_type'] == 'voice') {
+            // For voice questions, we don't compare answers
+            score++;
+          } else if (questions[i]['ques_type'] == 'rag') {
+            // For RAG questions, we don't compare answers
+            score++;
           } else {
             if (answers[i]!.first.toString() == 
                 questions[i]['answer'].toString()) {
@@ -189,13 +245,21 @@ class _QuizSliderState extends State<QuizSlider> {
     if (!answers.containsKey(index)) return false;
     
     if (questions[index]['ques_type'] == 'Multi_Sel') {
-      var correctAnswers = List<String>.from(questions[index]['answer'] as List);
+      var correctAnswers = questions[index]['answer'] != null && questions[index]['answer'] is List
+          ? List<String>.from(questions[index]['answer'] as List)
+          : <String>[];
       var userAnswers = answers[index] ?? [];
       return correctAnswers.length == userAnswers.length && 
              correctAnswers.every((element) => userAnswers.contains(element));
     } else if (questions[index]['ques_type'] == 'true_false') {
       return answers[index]!.first.toString().toLowerCase() == 
              questions[index]['answer'].toString().toLowerCase();
+    } else if (questions[index]['ques_type'] == 'voice') {
+      // For voice questions, any answer is considered correct
+      return true;
+    } else if (questions[index]['ques_type'] == 'rag') {
+      // For RAG questions, any answer is considered correct
+      return true;
     } else {
       return answers[index]!.first.toString() == 
              questions[index]['answer'].toString();
@@ -217,12 +281,80 @@ class _QuizSliderState extends State<QuizSlider> {
       return answers.contains(optionStr);
     } else if (question['ques_type'] == 'true_false') {
       return question['answer'].toString().toLowerCase() == optionStr.toLowerCase();
+    } else if (question['ques_type'] == 'rag') {
+      // For RAG questions, we don't compare answers
+      return true;
     } else {
       return question['answer'].toString() == optionStr;
     }
   }
 
   Widget _buildQuestionCard(Map<String, dynamic> question, int optionIndex) {
+    if (question['ques_type'] == 'rag') {
+      // Handle RAG type questions
+      List<Map<String, dynamic>> subcategories = 
+        (question['subcategories'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+      
+      if (subcategories.isEmpty) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Text('No subcategories available'),
+        );
+      }
+
+      return Container(
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...subcategories.map((subcategory) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subcategory['name'] as String? ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildRAGButton(
+                        color: Colors.red,
+                        label: 'Red',
+                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'red',
+                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'red'),
+                      ),
+                      _buildRAGButton(
+                        color: Colors.amber,
+                        label: 'Amber',
+                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'amber',
+                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'amber'),
+                      ),
+                      _buildRAGButton(
+                        color: Colors.green,
+                        label: 'Green',
+                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'green',
+                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'green'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
+    
+    // Handle other question types
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(16),
@@ -257,6 +389,49 @@ class _QuizSliderState extends State<QuizSlider> {
               child: Icon(Icons.check_circle, color: Colors.green, size: 16),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRAGButton({
+    required Color color,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey[400]!,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : Colors.grey[600],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -588,11 +763,15 @@ class _QuizSliderState extends State<QuizSlider> {
                             ),
                           ),
                           Text(
-                            question['ques_type'] == 'multiple_choice'
+                            question['ques_type'] == 'voice'
+                                ? 'Voice Question'
+                                : question['ques_type'] == 'multiple_choice'
                                 ? 'Multiple Choice'
                                 : question['ques_type'] == 'Multi_Sel'
                                     ? 'Multi Select'
-                                    : 'True/False',
+                                    : question['ques_type'] == 'rag'
+                                        ? 'RAG'
+                                        : 'True/False',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -609,80 +788,136 @@ class _QuizSliderState extends State<QuizSlider> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      ...(question['options'] as List).map((option) {
-                        final isSelected = isAnswerSelected(index, option.toString());
-                        final isMultiSelect = question['ques_type'] == 'Multi_Sel';
-                        
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: InkWell(
-                            onTap: () => handleAnswer(index, option.toString()),
-                            child: Container(
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Theme.of(context).primaryColor
-                                      : Colors.grey[300]!,
-                                  width: 2,
+                      if (question['ques_type'] == 'rag')
+                        ...List.generate(
+                          (question['subcategories'] as List?)?.length ?? 0,
+                          (subIndex) {
+                            final subcategory = (question['subcategories'] as List)[subIndex];
+                            final selectedColor = getRAGAnswer(index, subcategory['name']);
+                            
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: Container(
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey[300]!),
                                 ),
-                                color: isSelected
-                                    ? Theme.of(context).primaryColor.withOpacity(0.1)
-                                    : Colors.white,
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      shape: isMultiSelect ? BoxShape.rectangle : BoxShape.circle,
-                                      borderRadius: isMultiSelect ? BorderRadius.circular(4) : null,
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.grey[400]!,
-                                      ),
-                                      color: isSelected
-                                          ? Theme.of(context).primaryColor
-                                          : Colors.white,
-                                    ),
-                                    child: isSelected
-                                        ? Icon(
-                                            isMultiSelect ? Icons.check_box : Icons.check,
-                                            size: 16,
-                                            color: Colors.white,
-                                          )
-                                        : isMultiSelect
-                                            ? Icon(
-                                                Icons.check_box_outline_blank,
-                                                size: 16,
-                                                color: Colors.grey[400],
-                                              )
-                                            : null,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      option.toString(),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      subcategory['name'],
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: isSelected
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.black87,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
+                                    SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        _buildRAGButton(
+                                          color: Colors.red,
+                                          label: 'Red',
+                                          isSelected: selectedColor == 'red',
+                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'red'),
+                                        ),
+                                        _buildRAGButton(
+                                          color: Colors.amber,
+                                          label: 'Amber',
+                                          isSelected: selectedColor == 'amber',
+                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'amber'),
+                                        ),
+                                        _buildRAGButton(
+                                          color: Colors.green,
+                                          label: 'Green',
+                                          isSelected: selectedColor == 'green',
+                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'green'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        ...(question['options'] as List).map((option) {
+                          final isSelected = isAnswerSelected(index, option.toString());
+                          final isMultiSelect = question['ques_type'] == 'Multi_Sel';
+                          
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: InkWell(
+                              onTap: () => handleAnswer(index, option.toString()),
+                              child: Container(
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.grey[300]!,
+                                    width: 2,
                                   ),
-                                ],
+                                  color: isSelected
+                                      ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                      : Colors.white,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: isMultiSelect ? BoxShape.rectangle : BoxShape.circle,
+                                        borderRadius: isMultiSelect ? BorderRadius.circular(4) : null,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Theme.of(context).primaryColor
+                                              : Colors.grey[400]!,
+                                        ),
+                                        color: isSelected
+                                            ? Theme.of(context).primaryColor
+                                            : Colors.white,
+                                      ),
+                                      child: isSelected
+                                          ? Icon(
+                                              isMultiSelect ? Icons.check_box : Icons.check,
+                                              size: 16,
+                                              color: Colors.white,
+                                            )
+                                          : isMultiSelect
+                                              ? Icon(
+                                                  Icons.check_box_outline_blank,
+                                                  size: 16,
+                                                  color: Colors.grey[400],
+                                                )
+                                              : null,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        option.toString(),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: isSelected
+                                              ? Theme.of(context).primaryColor
+                                              : Colors.black87,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }).toList(),
                       SizedBox(height: 24),
                     ],
                   ),
@@ -760,13 +995,21 @@ class AssessmentCompletedView extends StatelessWidget {
     if (!answers.containsKey(index)) return false;
     
     if (questions[index]['ques_type'] == 'Multi_Sel') {
-      var correctAnswers = List<String>.from(questions[index]['answer'] as List);
+      var correctAnswers = questions[index]['answer'] != null && questions[index]['answer'] is List
+          ? List<String>.from(questions[index]['answer'] as List)
+          : <String>[];
       var userAnswers = answers[index] ?? [];
       return correctAnswers.length == userAnswers.length && 
              correctAnswers.every((element) => userAnswers.contains(element));
     } else if (questions[index]['ques_type'] == 'true_false') {
       return answers[index]!.first.toString().toLowerCase() == 
              questions[index]['answer'].toString().toLowerCase();
+    } else if (questions[index]['ques_type'] == 'voice') {
+      // For voice questions, any answer is considered correct
+      return true;
+    } else if (questions[index]['ques_type'] == 'rag') {
+      // For RAG questions, any answer is considered correct
+      return true;
     } else {
       return answers[index]!.first.toString() == 
              questions[index]['answer'].toString();
@@ -795,12 +1038,75 @@ class AssessmentCompletedView extends StatelessWidget {
       return answers.contains(optionStr);
     } else if (question['ques_type'] == 'true_false') {
       return question['answer'].toString().toLowerCase() == optionStr.toLowerCase();
+    } else if (question['ques_type'] == 'rag') {
+      // For RAG questions, we don't compare answers
+      return true;
     } else {
       return question['answer'].toString() == optionStr;
     }
   }
 
   Widget _buildQuestionCard(Map<String, dynamic> question, int optionIndex) {
+    if (question['ques_type'] == 'rag') {
+      // Handle RAG type questions
+      List<Map<String, dynamic>> subcategories = 
+        (question['subcategories'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+      
+      if (subcategories.isEmpty) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Text('No subcategories available'),
+        );
+      }
+
+      return Container(
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...subcategories.map((subcategory) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subcategory['name'] as String? ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.red,
+                      ),
+                      SizedBox(width: 8),
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.amber,
+                      ),
+                      SizedBox(width: 8),
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.green,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
+    
+    // Handle other question types
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(16),
