@@ -394,69 +394,123 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                       children: [
                         ...List.generate(
                           options.length,
-                          (i) => Padding(
-                            padding: EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    initialValue: options[i],
-                                    decoration: InputDecoration(
-                                      labelText: 'Option ${i + 1}',
-                                      border: OutlineInputBorder(),
+                          (i) => Card(
+                            margin: EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(context).primaryColor.withOpacity(0.1),
                                     ),
-                                    onChanged: (value) {
-                                      var newOptions = List<String>.from(options);
-                                      newOptions[i] = value;
-                                      optionsNotifier.value = newOptions;
-                                    },
+                                    child: Center(
+                                      child: Text(
+                                        '${i + 1}',
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                if (selectedQuestionType == 'Multi_Sel')
-                                  ValueListenableBuilder<List<String>>(
-                                    valueListenable: selectedAnswersNotifier,
-                                    builder: (context, selectedAnswers, _) {
-                                      return Checkbox(
-                                        value: selectedAnswers.contains(options[i]),
-                                        onChanged: (bool? value) {
-                                          if (value == true) {
-                                            selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
-                                          } else {
-                                            selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
-                                          }
-                                        },
-                                      );
-                                    },
-                                  )
-                                else if (selectedQuestionType == 'multiple_choice')
-                                  ValueListenableBuilder<List<String>>(
-                                    valueListenable: selectedAnswersNotifier,
-                                    builder: (context, selectedAnswers, _) {
-                                      return Radio<String>(
-                                        value: options[i],
-                                        groupValue: selectedAnswers.first,
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            selectedAnswersNotifier.value = [value];
-                                          }
-                                        },
-                                      );
-                                    },
-                                  ),
-                                if (options.length > 2)
-                                  IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () {
-                                      setState(() {
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextFormField(
+                                      initialValue: options[i],
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter option ${i + 1}',
+                                        border: OutlineInputBorder(),
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      ),
+                                      onChanged: (value) {
                                         var newOptions = List<String>.from(options);
+                                        newOptions[i] = value;
+                                        optionsNotifier.value = newOptions;
+                                        
+                                        // Update selected answers if the edited option was an answer
+                                        if (selectedQuestionType == 'Multi_Sel') {
+                                          var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                          int answerIndex = currentAnswers.indexOf(options[i]);
+                                          if (answerIndex != -1) {
+                                            currentAnswers[answerIndex] = value;
+                                            selectedAnswersNotifier.value = currentAnswers;
+                                          }
+                                        } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                          selectedAnswersNotifier.value = [value];
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  if (selectedQuestionType == 'Multi_Sel')
+                                    ValueListenableBuilder<List<String>>(
+                                      valueListenable: selectedAnswersNotifier,
+                                      builder: (context, selectedAnswers, _) {
+                                        return Checkbox(
+                                          value: selectedAnswers.contains(options[i]),
+                                          activeColor: Theme.of(context).primaryColor,
+                                          onChanged: (bool? value) {
+                                            if (value == true) {
+                                              selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
+                                            } else {
+                                              selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
+                                            }
+                                          },
+                                        );
+                                      },
+                                    )
+                                  else
+                                    ValueListenableBuilder<List<String>>(
+                                      valueListenable: selectedAnswersNotifier,
+                                      builder: (context, selectedAnswers, _) {
+                                        return Radio<String>(
+                                          value: options[i],
+                                          groupValue: selectedAnswers.first,
+                                          activeColor: Theme.of(context).primaryColor,
+                                          onChanged: (value) {
+                                            if (value != null) {
+                                              selectedAnswersNotifier.value = [value];
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  if (options.length > 2)
+                                    IconButton(
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                      tooltip: 'Remove option',
+                                      onPressed: () {
+                                        var newOptions = List<String>.from(options);
+                                        
+                                        // Remove the option from selected answers if it was selected
+                                        if (selectedQuestionType == 'Multi_Sel') {
+                                          var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                          currentAnswers.remove(options[i]);
+                                          selectedAnswersNotifier.value = currentAnswers;
+                                        } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                          selectedAnswersNotifier.value = [''];
+                                        }
+                                        
                                         newOptions.removeAt(i);
                                         optionsNotifier.value = newOptions;
-                                      });
-                                    },
-                                  ),
-                              ],
+                                      },
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
+                        ),
+                        SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            optionsNotifier.value = [...options, ''];
+                          },
+                          icon: Icon(Icons.add),
+                          label: Text('Add Option'),
                         ),
                       ],
                     );
@@ -735,41 +789,134 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                 children: [
                   Text('Options:', style: TextStyle(fontWeight: FontWeight.w500)),
                   SizedBox(height: 8),
-                  ...List.generate(
-                    (question['options'] as List).length,
-                    (optionIndex) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
+                  ValueListenableBuilder<List<String>>(
+                    valueListenable: optionsNotifier,
+                    builder: (context, options, _) {
+                      return Column(
                         children: [
-                          Text(
-                            '${optionIndex + 1}. ${question['options'][optionIndex]}',
-                            style: TextStyle(
-                              color: question['answer'] is List
-                                  ? (question['answer'] as List).contains(question['options'][optionIndex])
-                                      ? Colors.green
-                                      : Colors.black87
-                                  : question['answer'] == question['options'][optionIndex]
-                                      ? Colors.green
-                                      : Colors.black87,
-                              fontWeight: question['answer'] is List
-                                  ? (question['answer'] as List).contains(question['options'][optionIndex])
-                                      ? FontWeight.w600
-                                      : FontWeight.normal
-                                  : question['answer'] == question['options'][optionIndex]
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                          ...List.generate(
+                            options.length,
+                            (i) => Card(
+                              margin: EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${i + 1}',
+                                          style: TextStyle(
+                                            color: Theme.of(context).primaryColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: options[i],
+                                        decoration: InputDecoration(
+                                          hintText: 'Enter option ${i + 1}',
+                                          border: OutlineInputBorder(),
+                                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        ),
+                                        onChanged: (value) {
+                                          var newOptions = List<String>.from(options);
+                                          newOptions[i] = value;
+                                          optionsNotifier.value = newOptions;
+                                          
+                                          // Update selected answers if the edited option was an answer
+                                          if (question['ques_type'] == 'Multi_Sel') {
+                                            var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                            int answerIndex = currentAnswers.indexOf(options[i]);
+                                            if (answerIndex != -1) {
+                                              currentAnswers[answerIndex] = value;
+                                              selectedAnswersNotifier.value = currentAnswers;
+                                            }
+                                          } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                            selectedAnswersNotifier.value = [value];
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    if (question['ques_type'] == 'Multi_Sel')
+                                      ValueListenableBuilder<List<String>>(
+                                        valueListenable: selectedAnswersNotifier,
+                                        builder: (context, selectedAnswers, _) {
+                                          return Checkbox(
+                                            value: selectedAnswers.contains(options[i]),
+                                            activeColor: Theme.of(context).primaryColor,
+                                            onChanged: (bool? value) {
+                                              if (value == true) {
+                                                selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
+                                              } else {
+                                                selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
+                                              }
+                                            },
+                                          );
+                                        },
+                                      )
+                                    else
+                                      ValueListenableBuilder<List<String>>(
+                                        valueListenable: selectedAnswersNotifier,
+                                        builder: (context, selectedAnswers, _) {
+                                          return Radio<String>(
+                                            value: options[i],
+                                            groupValue: selectedAnswers.first,
+                                            activeColor: Theme.of(context).primaryColor,
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                selectedAnswersNotifier.value = [value];
+                                              }
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    if (options.length > 2)
+                                      IconButton(
+                                        icon: Icon(Icons.delete, color: Colors.red),
+                                        tooltip: 'Remove option',
+                                        onPressed: () {
+                                          var newOptions = List<String>.from(options);
+                                          
+                                          // Remove the option from selected answers if it was selected
+                                          if (question['ques_type'] == 'Multi_Sel') {
+                                            var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                            currentAnswers.remove(options[i]);
+                                            selectedAnswersNotifier.value = currentAnswers;
+                                          } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                            selectedAnswersNotifier.value = [''];
+                                          }
+                                          
+                                          newOptions.removeAt(i);
+                                          optionsNotifier.value = newOptions;
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          if (question['answer'] is List
-                              ? (question['answer'] as List).contains(question['options'][optionIndex])
-                              : question['answer'] == question['options'][optionIndex])
-                            Padding(
-                              padding: EdgeInsets.only(left: 8),
-                              child: Icon(Icons.check_circle, color: Colors.green, size: 16),
-                            ),
+                          SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              optionsNotifier.value = [...options, ''];
+                            },
+                            icon: Icon(Icons.add),
+                            label: Text('Add Option'),
+                          ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -924,7 +1071,6 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                   if (question['ques_type'] == 'voice') {
                     updatedQuestion['options'] = [];
                     updatedQuestion['answer'] = '';
-                    _updateQuestion(docId, index, updatedQuestion);
                   } else if (question['ques_type'] == 'rag') {
                     List<Map<String, dynamic>> validSubcategories = subcategoriesNotifier.value
                         .where((subcat) => subcat['name'].toString().trim().isNotEmpty)
@@ -938,11 +1084,13 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                     }
 
                     updatedQuestion['subcategories'] = validSubcategories;
-                    _updateQuestion(docId, index, updatedQuestion);
-                  } else if (question['ques_type'] != 'true_false') {
-                    // Validation for multiple choice and multi-select questions
+                  } else if (question['ques_type'] == 'true_false') {
+                    updatedQuestion['options'] = ['True', 'False'];
+                    updatedQuestion['answer'] = selectedAnswersNotifier.value.first;
+                  } else {
+                    // For multiple choice and multi-select
                     List<String> validOptions = optionsNotifier.value
-                        .where((text) => text.trim().isNotEmpty)
+                        .where((option) => option.trim().isNotEmpty)
                         .toList();
 
                     if (validOptions.length < 2) {
@@ -952,26 +1100,27 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                       return;
                     }
 
-                    if (selectedAnswersNotifier.value.isEmpty) {
+                    // Validate that all selected answers exist in the options
+                    List<String> validAnswers = selectedAnswersNotifier.value
+                        .where((answer) => validOptions.contains(answer))
+                        .toList();
+
+                    if (validAnswers.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select an answer')),
+                        SnackBar(content: Text('Please select at least one answer')),
                       );
                       return;
                     }
 
                     updatedQuestion['options'] = validOptions;
-                    updatedQuestion['answer'] = question['ques_type'] == 'Multi_Sel'
-                        ? selectedAnswersNotifier.value
-                        : selectedAnswersNotifier.value.first;
-                    _updateQuestion(docId, index, updatedQuestion);
-                  } else {
-                    // True/False questions
-                    updatedQuestion['options'] = ['true', 'false'];
-                    updatedQuestion['answer'] = selectedAnswersNotifier.value.first;
-                    _updateQuestion(docId, index, updatedQuestion);
+                    updatedQuestion['answer'] = question['ques_type'] == 'Multi_Sel' 
+                        ? validAnswers 
+                        : validAnswers.first;
                   }
+
+                  _updateQuestion(docId, index, updatedQuestion);
                 },
-                child: Text('Save Changes'),
+                child: Text('Save'),
               ),
             ],
           ),
@@ -1329,69 +1478,123 @@ class _TestEditState extends State<TestEdit> with SingleTickerProviderStateMixin
                           children: [
                             ...List.generate(
                               options.length,
-                              (i) => Padding(
-                                padding: EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        initialValue: options[i],
-                                        decoration: InputDecoration(
-                                          labelText: 'Option ${i + 1}',
-                                          border: OutlineInputBorder(),
+                              (i) => Card(
+                                margin: EdgeInsets.only(bottom: 8),
+                                child: Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Theme.of(context).primaryColor.withOpacity(0.1),
                                         ),
-                                        onChanged: (value) {
-                                          var newOptions = List<String>.from(options);
-                                          newOptions[i] = value;
-                                          optionsNotifier.value = newOptions;
-                                        },
+                                        child: Center(
+                                          child: Text(
+                                            '${i + 1}',
+                                            style: TextStyle(
+                                              color: Theme.of(context).primaryColor,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    if (selectedQuestionType == 'Multi_Sel')
-                                      ValueListenableBuilder<List<String>>(
-                                        valueListenable: selectedAnswersNotifier,
-                                        builder: (context, selectedAnswers, _) {
-                                          return Checkbox(
-                                            value: selectedAnswers.contains(options[i]),
-                                            onChanged: (bool? value) {
-                                              if (value == true) {
-                                                selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
-                                              } else {
-                                                selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
-                                              }
-                                            },
-                                          );
-                                        },
-                                      )
-                                    else if (selectedQuestionType == 'multiple_choice')
-                                      ValueListenableBuilder<List<String>>(
-                                        valueListenable: selectedAnswersNotifier,
-                                        builder: (context, selectedAnswers, _) {
-                                          return Radio<String>(
-                                            value: options[i],
-                                            groupValue: selectedAnswers.first,
-                                            onChanged: (value) {
-                                              if (value != null) {
-                                                selectedAnswersNotifier.value = [value];
-                                              }
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    if (options.length > 2)
-                                      IconButton(
-                                        icon: Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () {
-                                          setState(() {
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: TextFormField(
+                                          initialValue: options[i],
+                                          decoration: InputDecoration(
+                                            hintText: 'Enter option ${i + 1}',
+                                            border: OutlineInputBorder(),
+                                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
+                                          onChanged: (value) {
                                             var newOptions = List<String>.from(options);
+                                            newOptions[i] = value;
+                                            optionsNotifier.value = newOptions;
+                                            
+                                            // Update selected answers if the edited option was an answer
+                                            if (selectedQuestionType == 'Multi_Sel') {
+                                              var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                              int answerIndex = currentAnswers.indexOf(options[i]);
+                                              if (answerIndex != -1) {
+                                                currentAnswers[answerIndex] = value;
+                                                selectedAnswersNotifier.value = currentAnswers;
+                                              }
+                                            } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                              selectedAnswersNotifier.value = [value];
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      if (selectedQuestionType == 'Multi_Sel')
+                                        ValueListenableBuilder<List<String>>(
+                                          valueListenable: selectedAnswersNotifier,
+                                          builder: (context, selectedAnswers, _) {
+                                            return Checkbox(
+                                              value: selectedAnswers.contains(options[i]),
+                                              activeColor: Theme.of(context).primaryColor,
+                                              onChanged: (bool? value) {
+                                                if (value == true) {
+                                                  selectedAnswersNotifier.value = [...selectedAnswers, options[i]];
+                                                } else {
+                                                  selectedAnswersNotifier.value = selectedAnswers.where((answer) => answer != options[i]).toList();
+                                                }
+                                              },
+                                            );
+                                          },
+                                        )
+                                      else
+                                        ValueListenableBuilder<List<String>>(
+                                          valueListenable: selectedAnswersNotifier,
+                                          builder: (context, selectedAnswers, _) {
+                                            return Radio<String>(
+                                              value: options[i],
+                                              groupValue: selectedAnswers.first,
+                                              activeColor: Theme.of(context).primaryColor,
+                                              onChanged: (value) {
+                                                if (value != null) {
+                                                  selectedAnswersNotifier.value = [value];
+                                                }
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      if (options.length > 2)
+                                        IconButton(
+                                          icon: Icon(Icons.delete, color: Colors.red),
+                                          tooltip: 'Remove option',
+                                          onPressed: () {
+                                            var newOptions = List<String>.from(options);
+                                            
+                                            // Remove the option from selected answers if it was selected
+                                            if (selectedQuestionType == 'Multi_Sel') {
+                                              var currentAnswers = List<String>.from(selectedAnswersNotifier.value);
+                                              currentAnswers.remove(options[i]);
+                                              selectedAnswersNotifier.value = currentAnswers;
+                                            } else if (selectedAnswersNotifier.value.first == options[i]) {
+                                              selectedAnswersNotifier.value = [''];
+                                            }
+                                            
                                             newOptions.removeAt(i);
                                             optionsNotifier.value = newOptions;
-                                          });
-                                        },
-                                      ),
-                                  ],
+                                          },
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                            ),
+                            SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                optionsNotifier.value = [...options, ''];
+                              },
+                              icon: Icon(Icons.add),
+                              label: Text('Add Option'),
                             ),
                           ],
                         );

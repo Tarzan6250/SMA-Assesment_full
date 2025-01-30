@@ -322,28 +322,32 @@ class _QuizSliderState extends State<QuizSlider> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildRAGButton(
-                        color: Colors.red,
-                        label: 'Red',
-                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'red',
-                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'red'),
-                      ),
-                      _buildRAGButton(
-                        color: Colors.amber,
-                        label: 'Amber',
-                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'amber',
-                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'amber'),
-                      ),
-                      _buildRAGButton(
-                        color: Colors.green,
-                        label: 'Green',
-                        isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'green',
-                        onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'green'),
-                      ),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildRAGButton(
+                          color: Colors.red,
+                          label: 'Beginner',
+                          isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'red',
+                          onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'red'),
+                        ),
+                        SizedBox(width: 8),
+                        _buildRAGButton(
+                          color: Colors.amber,
+                          label: 'Intermediate',
+                          isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'amber',
+                          onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'amber'),
+                        ),
+                        SizedBox(width: 8),
+                        _buildRAGButton(
+                          color: Colors.green,
+                          label: 'Expert',
+                          isSelected: getRAGAnswer(currentSlide, subcategory['name']) == 'green',
+                          onTap: () => handleRAGAnswer(currentSlide, subcategory['name'], 'green'),
+                        ),
+                      ],
+                    ),
                   ),
                   SizedBox(height: 16),
                 ],
@@ -401,36 +405,26 @@ class _QuizSliderState extends State<QuizSlider> {
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        constraints: BoxConstraints(minWidth: 100),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+          color: isSelected ? color : color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? color : Colors.grey[400]!,
+            color: color,
             width: 2,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-              ),
-            ),
-            SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? color : Colors.grey[600],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? Colors.white : color,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
       ),
     );
@@ -733,7 +727,7 @@ class _QuizSliderState extends State<QuizSlider> {
           Expanded(
             child: PageView.builder(
               controller: _pageController,
-              physics: BouncingScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               onPageChanged: (index) {
                 setState(() {
                   currentSlide = index;
@@ -766,12 +760,12 @@ class _QuizSliderState extends State<QuizSlider> {
                             question['ques_type'] == 'voice'
                                 ? 'Voice Question'
                                 : question['ques_type'] == 'multiple_choice'
-                                ? 'Multiple Choice'
-                                : question['ques_type'] == 'Multi_Sel'
-                                    ? 'Multi Select'
-                                    : question['ques_type'] == 'rag'
-                                        ? 'RAG'
-                                        : 'True/False',
+                                    ? 'Multiple Choice'
+                                    : question['ques_type'] == 'Multi_Sel'
+                                        ? 'Multi Select'
+                                        : question['ques_type'] == 'rag'
+                                            ? 'RAG'
+                                            : 'True/False',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -814,28 +808,32 @@ class _QuizSliderState extends State<QuizSlider> {
                                       ),
                                     ),
                                     SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                      children: [
-                                        _buildRAGButton(
-                                          color: Colors.red,
-                                          label: 'Red',
-                                          isSelected: selectedColor == 'red',
-                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'red'),
-                                        ),
-                                        _buildRAGButton(
-                                          color: Colors.amber,
-                                          label: 'Amber',
-                                          isSelected: selectedColor == 'amber',
-                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'amber'),
-                                        ),
-                                        _buildRAGButton(
-                                          color: Colors.green,
-                                          label: 'Green',
-                                          isSelected: selectedColor == 'green',
-                                          onTap: () => handleRAGAnswer(index, subcategory['name'], 'green'),
-                                        ),
-                                      ],
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          _buildRAGButton(
+                                            color: Colors.red,
+                                            label: 'Beginner',
+                                            isSelected: selectedColor == 'red',
+                                            onTap: () => handleRAGAnswer(index, subcategory['name'], 'red'),
+                                          ),
+                                          SizedBox(width: 8),
+                                          _buildRAGButton(
+                                            color: Colors.amber,
+                                            label: 'Intermediate',
+                                            isSelected: selectedColor == 'amber',
+                                            onTap: () => handleRAGAnswer(index, subcategory['name'], 'amber'),
+                                          ),
+                                          SizedBox(width: 8),
+                                          _buildRAGButton(
+                                            color: Colors.green,
+                                            label: 'Expert',
+                                            isSelected: selectedColor == 'green',
+                                            onTap: () => handleRAGAnswer(index, subcategory['name'], 'green'),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -925,42 +923,58 @@ class _QuizSliderState extends State<QuizSlider> {
               },
             ),
           ),
-          // Bottom navigation buttons in a fixed position
+          // Navigation Buttons
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: Offset(0, -2),
-                ),
-              ],
+              border: Border(
+                top: BorderSide(color: Colors.grey[300]!),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (currentSlide > 0)
-                  ElevatedButton(
-                    onPressed: () => navigateToQuestion(currentSlide - 1),
-                    child: Text('Previous'),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      _pageController.previousPage(
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    icon: Icon(Icons.arrow_back),
+                    label: Text('Previous'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200],
+                      foregroundColor: Colors.black87,
+                    ),
                   )
                 else
-                  SizedBox(width: 80), // Placeholder for spacing
+                  SizedBox(width: 100), // Placeholder for alignment
                 if (currentSlide < questions.length - 1)
-                  ElevatedButton(
-                    onPressed: () => navigateToQuestion(currentSlide + 1),
-                    child: Text('Next'),
-                  )
-                else
-                  ElevatedButton(
-                    onPressed: handleSubmit,
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      _pageController.nextPage(
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    icon: Icon(Icons.arrow_forward),
+                    label: Text('Next'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text('Submit'),
+                  )
+                else
+                  ElevatedButton.icon(
+                    onPressed: handleSubmit,
+                    icon: Icon(Icons.check_circle),
+                    label: Text('Submit'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
               ],
             ),
